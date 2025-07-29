@@ -149,7 +149,7 @@ pub fn run_http_server(socket_addr: &SocketAddr) -> std::io::Result<()> {
     println!("🚀 Listening on {socket_addr_str}");
     loop {
         let tcp_stream = accept_loop(&listener)?;
-        handle_connection(&tcp_stream);
+        handle_connection(&tcp_stream)?;
     }
 }
 
@@ -167,21 +167,35 @@ fn accept_loop(listener: &TcpListener) -> Result<TcpStream, std::io::Error> {
     Err(std::io::Error::other("Listener closed unexpectedly"))
 }
 
-fn handle_connection(mut stream: &TcpStream) {
+fn handle_connection(mut stream: &TcpStream) -> Result<(), std::io::Error> {
     let buf_reader = BufReader::new(stream);
+    // let mut request_line = String::new();
+    // let _ = buf_reader.read_line(&mut request_line);
+
     let http_request: Vec<_> = buf_reader
         .lines()
         .map_while(Result::ok)
         .take_while(|line| !line.is_empty())
         .collect();
 
-    println!("Received request: {http_request:?}");
+    // TEST: err missing req
+    // let http_request: Vec<u8> = vec![];
 
-    let status_line = "HTTP/1.1 200 OK";
-    let contents = fs::read_to_string("index.html").unwrap();
-    let length = contents.len();
+    if let Some(request_line) = http_request.first() {
+        // TODO: handle routing
+        println!("{request_line}");
 
-    let response = format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
+        let status_line = "HTTP/1.1 200 OK";
+        let contents = fs::read_to_string("index.html").unwrap();
+        let length = contents.len();
 
-    stream.write_all(response.as_bytes()).unwrap();
+        let response = format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
+
+        stream.write_all(response.as_bytes()).unwrap();
+        Ok(())
+    } else {
+        Err(std::io::Error::other(
+            "Malformed or empty HTTP request: {http_request:}",
+        ))
+    }
 }
