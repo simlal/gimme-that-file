@@ -2,7 +2,7 @@ use std::env;
 use std::error::Error;
 use std::fmt;
 use std::io;
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpListener;
 use std::num::ParseIntError;
 
 //
@@ -119,6 +119,12 @@ impl<'a> fmt::Display for SocketAddrError<'a> {
 }
 
 impl<'a> Error for SocketAddrError<'a> {}
+// HACK: Remove instead of impl a constructor for From trait/func
+// impl<'a> From<env::VarError> for SocketAddrError<'a> {
+//     fn from(e: env::VarError, v: &'a str) -> Self {
+//         SocketAddrError::Env(e, v)
+//     }
+// }
 
 impl<'a> From<ParseIntError> for SocketAddrError<'a> {
     fn from(e: ParseIntError) -> Self {
