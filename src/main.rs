@@ -1,6 +1,6 @@
 mod tcp_ip;
 
-use tcp_ip::{SocketAddr, establish_tcp_conn};
+use tcp_ip::{SocketAddr, run_http_server};
 
 fn main() {
     // Read IP-port from environment and/or .env file
@@ -8,7 +8,7 @@ fn main() {
 
     match SocketAddr::from_env() {
         Ok(socket) => {
-            if let Err(e) = establish_tcp_conn(&socket) {
+            if let Err(e) = run_http_server(&socket) {
                 eprintln!("❌ Connection error: {e}");
             }
         }

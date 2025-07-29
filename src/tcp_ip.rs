@@ -1,12 +1,14 @@
-use std::env;
-use std::error::Error;
-use std::fmt;
-use std::io;
-use std::net::TcpListener;
-use std::num::ParseIntError;
+use std::{
+    env,
+    error::Error,
+    fmt, fs,
+    io::{BufReader, prelude::*},
+    net::{TcpListener, TcpStream},
+    num::ParseIntError,
+};
 
 //
-// IP Address
+// Basic IP Address
 //
 #[derive(Debug)]
 pub enum IpAddr {
@@ -41,7 +43,7 @@ impl IpAddr {
 }
 
 //
-// Socket Address + Error
+// Basic Socket Address + Error
 //
 #[derive(Debug)]
 pub struct SocketAddr {
@@ -138,18 +140,48 @@ impl<'a> From<IpParseError> for SocketAddrError<'a> {
 }
 
 //
-// TCP Server
+// Simple TCP Server
 //
-pub fn establish_tcp_conn(socket_addr: &SocketAddr) -> io::Result<()> {
+pub fn run_http_server(socket_addr: &SocketAddr) -> std::io::Result<()> {
     let socket_addr_str = socket_addr.to_string();
 
     let listener = TcpListener::bind(&socket_addr_str)?;
     println!("🚀 Listening on {socket_addr_str}");
+    loop {
+        let tcp_stream = accept_loop(&listener)?;
+        handle_connection(&tcp_stream);
+    }
+}
+
+fn accept_loop(listener: &TcpListener) -> Result<TcpStream, std::io::Error> {
     for stream in listener.incoming() {
         match stream {
-            Ok(s) => println!("✅ Connection from {s:?}"),
+            Ok(s) => {
+                println!("✅ Connection from {s:?}");
+                return Ok(s);
+            }
             Err(e) => eprintln!("⚠️ Connection failed: {e}"),
         }
     }
-    Ok(())
+    // Listener gets closed if loop ends
+    Err(std::io::Error::other("Listener closed unexpectedly"))
+}
+
+fn handle_connection(mut stream: &TcpStream) {
+    let buf_reader = BufReader::new(stream);
+    let http_request: Vec<_> = buf_reader
+        .lines()
+        .map_while(Result::ok)
+        .take_while(|line| !line.is_empty())
+        .collect();
+
+    println!("Received request: {http_request:?}");
+
+    let status_line = "HTTP/1.1 200 OK";
+    let contents = fs::read_to_string("index.html").unwrap();
+    let length = contents.len();
+
+    let response = format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
+
+    stream.write_all(response.as_bytes()).unwrap();
 }
