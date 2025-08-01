@@ -4,7 +4,18 @@ use tcp_ip::{SocketAddr, run_http_server};
 
 fn main() {
     // Read IP-port from environment and/or .env file
-    let _ = dotenv::dotenv();
+    match dotenv::dotenv() {
+        Ok(dotenv_file) => println!(
+            "Found and loaded environment variables from {:?}.",
+            dotenv_file
+                .file_name()
+                .and_then(|fname| fname.to_str())
+                .unwrap_or("<unknown>")
+        ),
+        Err(_) => {
+            println!("Could not found and load vars from .env file. Using current environment")
+        }
+    }
 
     match SocketAddr::from_env() {
         Ok(socket) => {
