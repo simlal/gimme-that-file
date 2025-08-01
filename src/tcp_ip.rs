@@ -167,22 +167,15 @@ fn accept_loop(listener: &TcpListener) -> Result<TcpStream, std::io::Error> {
     Err(std::io::Error::other("Listener closed unexpectedly"))
 }
 
-fn handle_connection(mut stream: &TcpStream) -> Result<(), std::io::Error> {
-    let buf_reader = BufReader::new(stream);
-    // let mut request_line = String::new();
-    // let _ = buf_reader.read_line(&mut request_line);
+fn serve_request(request_line: &String) -> String {
+    // TODO:
+    String::new()
+}
 
-    let http_request: Vec<_> = buf_reader
-        .lines()
-        .map_while(Result::ok)
-        .take_while(|line| !line.is_empty())
-        .collect();
-
-    // TEST: err missing req
-    // let http_request: Vec<u8> = vec![];
-
+fn handle_http_request(http_request: Vec<String>) -> String {
     if let Some(request_line) = http_request.first() {
         // TODO: handle routing
+        println!("{http_request:?}");
         println!("{request_line}");
 
         let status_line = "HTTP/1.1 200 OK";
@@ -190,12 +183,26 @@ fn handle_connection(mut stream: &TcpStream) -> Result<(), std::io::Error> {
         let length = contents.len();
 
         let response = format!("{status_line}\r\nContent-Length: {length}\r\n\r\n{contents}");
-
-        stream.write_all(response.as_bytes()).unwrap();
-        Ok(())
+        response
     } else {
-        Err(std::io::Error::other(
-            "Malformed or empty HTTP request: {http_request:}",
-        ))
+        eprintln!("Error: Malformed or empty HTTP request");
+        "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n".to_string()
     }
+}
+
+fn handle_connection(mut stream: &TcpStream) -> Result<(), std::io::Error> {
+    let buf_reader = BufReader::new(stream);
+
+    let http_request: Vec<String> = buf_reader
+        .lines()
+        .map_while(Result::ok)
+        .take_while(|line| !line.is_empty())
+        .collect();
+
+    // TEST: Shadow var for err missing req
+    // let http_request: Vec<String> = vec![];
+
+    let response = handle_http_request(http_request);
+    stream.write_all(response.as_bytes())?;
+    Ok(())
 }
